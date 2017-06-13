@@ -1,0 +1,99 @@
+---
+- name: "Setup SSH authorized key"
+  hosts: edgerouter
+  tasks:
+    - name: "Create persistent local config directory"
+      file: 
+        path: /config/local
+        state: directory
+
+    - name: "Copy SSH public key to router"
+      copy: 
+        src: "~/.ssh/id_ed25519.pub"
+        dest: "/config/local/authorized-ssh-key"
+
+    - name: "Copy script to load public key into config"
+      copy:
+        src: load-authorized-key.sh
+        dest: /config/local/load-authorized-key.sh
+        mode: 0755
+
+    - name: "Load SSH public key into config"
+      command: /config/local/load-authorized-key.sh
+
+- name: "Install SSL certificate"
+  hosts: edgerouter
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: "Copy SSL certificate to router"
+      copy:
+        src: server.pem
+        dest: /config/local/server.pem
+        owner: root
+        group: root
+        mode: 0600
+      notify: "restart lighttpd"
+
+    - name: "Link SSL certificate into Lighttpd directory"
+      file:
+        path: /etc/lighttpd/server.pem
+        src: /config/local/server.pem
+        state: link
+        force: yes
+      notify: "restart lighttpd"
+
+  handlers: 
+   - name: "restart lighttpd"
+     shell: "pkill lighttpd ; /usr/sbin/lighttpd -f /etc/lighttpd/lighttpd.conf"
+
+- name: "Setup dnsmasq for router hostname"
+  hosts: edgerouter
+  gather_facts: no
+  tasks:
+    - name: "Create addn-hosts file"
+      template:
+        dest: /config/local/addn-hosts
+        src: templates/addn-hosts.j2
+        force: yes
+
+- name: "Install sync-hosts-to-route53 binary"
+  hosts: edgerouter
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: "Download compressed binary"
+      get_url:
+        url: "https://github.com/claytononeill/sync-hosts-to-route53/releases/download/{{ sync_version }}/sync-hosts-to-route53-linux-mips64.gz"
+        dest: "/config/local/sync-hosts-to-route53-{{ sync_version }}.gz"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+      notify: "Uncompress binary" 
+  handlers:
+    - name: "Uncompress binary"
+      shell: "gunzip -c sync-hosts-to-route53-{{ sync_version }}.gz > sync-hosts-to-route53.tmp && mv sync-hosts-to-route53.tmp sync-hosts-to-route53"
+      args:
+        chdir: "/config/local"
+
+- name: "Finish setup for sync-hosts-to-route53"
+  hosts: edgerouter
+  become: yes
+  gather_facts: no
+  tasks:
+    - include_vars: "vault.yaml"
+
+    - name: "Set owner/mode on binary"
+      file:
+        name: "/config/local/sync-hosts-to-route53"
+        owner: "root"
+        group: "root"
+        mode: "0755"
+
+    - name: "Create startup script"
+      template:
+        src: "templates/sync-hosts-to-route53.sh.j2"
+        dest: "/config/scripts/post-config.d/sync-hosts-to-route53.sh"
+        owner: "root"
+        group: "root"
+        mode: "0755"

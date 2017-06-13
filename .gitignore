@@ -1,0 +1,4 @@
+hosts
+server.pem
+*.retry
+ansible-vault-password

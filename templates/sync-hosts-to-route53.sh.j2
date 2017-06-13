@@ -1,0 +1,35 @@
+#!/bin/bash
+
+export AWS_ACCESS_KEY_ID="{{ aws_access_key_id }}"
+export AWS_SECRET_ACCESS_KEY="{{ aws_secret_access_key }}"
+
+ACTION=${1:-start}
+
+case $ACTION in
+    start)
+        exec /sbin/start-stop-daemon --start \
+            --make-pidfile \
+            --pidfile /var/run/sync-hosts-to-route53.pid \
+            --background \
+            --exec /config/local/sync-hosts-to-route53 \
+            -- \
+                --domain oneill.net \
+                --network 172.19.74.0/24 \
+                --syslog-only \
+                --syslog-facility local7
+
+    ;;
+    stop)
+        /sbin/start-stop-daemon --stop \
+            --make-pidfile \
+            --pidfile /var/run/sync-hosts-to-route53.pid \
+            --exec /config/local/sync-hosts-to-route53 \
+            -- \
+                --domain oneill.net \
+                --network 172.19.74.0/24 \
+                --syslog-only \
+                --syslog-facility local7 && \
+        /bin/rm -f /var/run/sync-hosts-to-route53.pid
+    ;;
+esac
+
