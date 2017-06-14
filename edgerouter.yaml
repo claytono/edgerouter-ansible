@@ -64,7 +64,7 @@
   tasks:
     - name: "Download compressed binary"
       get_url:
-        url: "https://github.com/claytononeill/sync-hosts-to-route53/releases/download/{{ sync_version }}/sync-hosts-to-route53-linux-mips64.gz"
+        url: "https://github.com/claytononeill/sync-hosts-to-route53/releases/download/{{ sync_version }}/sync-hosts-to-route53-linux-mips.gz"
         dest: "/config/local/sync-hosts-to-route53-{{ sync_version }}.gz"
         owner: "root"
         group: "root"
