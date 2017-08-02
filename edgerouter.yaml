@@ -69,12 +69,17 @@
         owner: "root"
         group: "root"
         mode: "0644"
-      notify: "Uncompress binary" 
+      notify:
+       - "Uncompress binary"
+       - "restart sync-hosts-to-route53"
+
   handlers:
     - name: "Uncompress binary"
       shell: "gunzip -c sync-hosts-to-route53-{{ sync_version }}.gz > sync-hosts-to-route53.tmp && mv sync-hosts-to-route53.tmp sync-hosts-to-route53"
       args:
         chdir: "/config/local"
+    - name: "restart sync-hosts-to-route53"
+      command: "/config/scripts/post-config.d/sync-hosts-to-route53.sh restart"
 
 - name: "Finish setup for sync-hosts-to-route53"
   hosts: edgerouter
@@ -97,3 +102,8 @@
         owner: "root"
         group: "root"
         mode: "0755"
+      notify:
+        - "restart sync-hosts-to-route53"
+  handlers:
+    - name: "restart sync-hosts-to-route53"
+      command: "/config/scripts/post-config.d/sync-hosts-to-route53.sh restart"
