@@ -5,31 +5,44 @@ export AWS_SECRET_ACCESS_KEY="{{ aws_secret_access_key }}"
 
 ACTION=${1:-start}
 
+PARAMS="
+    --
+    --domain oneill.net
+    --network 172.19.74.0/24
+    --syslog-only
+    --syslog-facility local7
+    --exclude-host luser.oneill.net
+"
+
+ulimit -c unlimited
+
 case $ACTION in
     start)
         exec /sbin/start-stop-daemon --start \
             --make-pidfile \
             --pidfile /var/run/sync-hosts-to-route53.pid \
             --background \
-            --exec /config/local/sync-hosts-to-route53 \
-            -- \
-                --domain oneill.net \
-                --network 172.19.74.0/24 \
-                --syslog-only \
-                --syslog-facility local7
-
+            --exec /config/local/sync-hosts-to-route53 $PARAMS
     ;;
     stop)
         /sbin/start-stop-daemon --stop \
             --make-pidfile \
             --pidfile /var/run/sync-hosts-to-route53.pid \
-            --exec /config/local/sync-hosts-to-route53 \
-            -- \
-                --domain oneill.net \
-                --network 172.19.74.0/24 \
-                --syslog-only \
-                --syslog-facility local7 && \
+            --exec /config/local/sync-hosts-to-route53 $PARAMS
         /bin/rm -f /var/run/sync-hosts-to-route53.pid
+    ;;
+    restart)
+        /sbin/start-stop-daemon --stop \
+            --make-pidfile \
+            --pidfile /var/run/sync-hosts-to-route53.pid \
+            --exec /config/local/sync-hosts-to-route53 $PARAMS
+        /bin/rm -f /var/run/sync-hosts-to-route53.pid
+
+        exec /sbin/start-stop-daemon --start \
+            --make-pidfile \
+            --pidfile /var/run/sync-hosts-to-route53.pid \
+            --background \
+            --exec /config/local/sync-hosts-to-route53 $PARAMS
     ;;
 esac
 
